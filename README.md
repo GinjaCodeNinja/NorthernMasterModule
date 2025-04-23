@@ -1,4 +1,4 @@
-    # NorthernMasterModule
+# NorthernMasterModule
 Master Module for Northern Computer for PowerShell using PnP / Graph / Exchange
 
 .SYNOPSIS
