@@ -1,37 +1,40 @@
 function Get-GroupMembers {
     param (
-        [Parameter(Mandatory)]
+        [Parameter(
+            Mandatory,
+            ValueFromPipeline
+        )]
         [string]$GroupId
     )
     
-    $userList = @()
-    Invoke-WithRetry -ScriptBlock {
-
-        $members = Get-MGGroupMember -GroupId $GroupId -All
-
-        foreach($member in $members){
-
-            $member = Get-MgUser -UserId $member.Id
-
-            $userList += [PSCustomObject]@{
-
-                DisplayName = $member.DisplayName
-                Id          = $member.Id
-                Upn         = $member.UserPrincipalName
-            } 
+    process {
+        Invoke-WithRetry -ScriptBlock {
+            $members = Get-MgGroupMember -GroupId $GroupId -All
+            foreach ($member in $members) {
+                if ($member.AdditionalProperties['userPrincipalName']) {
+                    [PSCustomObject]@{
+                        DisplayName = $member.AdditionalProperties['displayName']
+                        Id          = $member.Id
+                        Upn         = $member.AdditionalProperties['userPrincipalName']
+                    }
+                }
+            }
         }
-
-        return $userList
-
     }
 }
 
 function Add-GroupMember {
     param (
-        [Parameter(Mandatory)]
+        [Parameter(
+            Mandatory,
+            ValueFromPipeline
+        )]
         [string]$GroupId,
 
-        [Parameter(Mandatory)]
+        [Parameter(
+            Mandatory,
+            ValueFromPipelineByPropertyName
+        )]
         [string]$UserId
     )
 
@@ -44,10 +47,16 @@ function Add-GroupMember {
 
 function Remove-GroupMember {
     param (
-        [Parameter(Mandatory)]
+        [Parameter(
+            Mandatory,
+            ValueFromPipeline
+        )]
         [string]$GroupId,
 
-        [Parameter(Mandatory)]
+        [Parameter(
+            Mandatory,
+            ValueFromPipelineByPropertyName
+        )]
         [string]$UserId
     )
 

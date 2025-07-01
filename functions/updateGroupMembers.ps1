@@ -8,11 +8,14 @@
 function Update-GroupMembership {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory)]
-        [System.Object]$SourceGroup,
+        [Parameter(
+            Mandatory,
+            ValueFromPipeline
+        )]
+        [PSCustomObject]$SourceGroup,
 
         [Parameter(Mandatory)]
-        [System.Object]$TargetGroup
+        [PSCustomObject]$TargetGroup
     )
     
     begin {
@@ -33,11 +36,14 @@ function Update-GroupMembership {
             Write-Host -ForegroundColor White "     Retrieving members from target group: $($TargetGroup.DisplayName)"
             $targetMembers = Invoke-WithRetry -ScriptBlock {
 
-                Get-GroupMembers -GroupId $TargetGroup.Id
+                Get-GroupMembers -GroupId $TargetGroup.Id 
             }
 
-            $toAdd = $sourceMembers | Where-Object { $_.Id -notin $targetMembers }
-            $toRemove = $targetMembers | Where-Object { $_.Id -notin $sourceMembers }
+            $sourceIds = $sourceMembers | Select-Object -ExpandProperty Id
+            $targetIds = $targetMembers | Select-Object -ExpandProperty Id
+
+            $toAdd = $sourceMembers | Where-Object { $_.Id -notin $targetIds }
+            $toRemove = $targetMembers | Where-Object { $_.Id -notin $sourceIds }
 
             if($toAdd.Count -gt 0){
 
