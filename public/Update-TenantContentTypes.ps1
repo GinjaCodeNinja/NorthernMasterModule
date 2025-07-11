@@ -6,10 +6,10 @@
 
 & $privateDirectory\invokeWithRetry.ps1
 
-$connection = Connect-PnPOnline -ClientId $clientId -Url "https://$($tenant).sharepoint.com/sites/ContentTypeHub" -Interactive
+$connection = Connect-PnPOnline -ClientId $clientId -Url "https://$($tenant).sharepoint.com/sites/ContentTypeHub" -Interactive -ReturnConnection
 
 # Get the "Document Set" content types
-$contentTypes = Get-PnPContentType | Where-Object { $_.Id.StringValue.StartsWith("0x0120D520") }
+$contentTypes = Get-PnPContentType -Connection $connection | Where-Object { $_.Id.StringValue.StartsWith("0x0120D520") }
 
 foreach ($contentType in $contentTypes) {
 
@@ -34,7 +34,7 @@ if ($toPublish.ToUpper() -eq 'Y') {
 
     # Publish the changed content type
     Write-Host -ForegroundColor Yellow "Publishing content type $($contentTypes[$contentTypeIndex-1].Name) with ID $($contentTypes[$contentTypeIndex-1].Id)"
-    Publish-PnPContentType -ContentType $contentTypes[$contentTypeIndex - 1].Id
+    Publish-PnPContentType -ContentType $contentTypes[$contentTypeIndex - 1].Id -Connection $connection
 }
 else {
 
