@@ -18,7 +18,6 @@ function Get-SharedLinks {
         [string]$SiteUrl
         
     )
-
     [array]$ExcludedLists = @(
         "Form Templates", 
         "Style Library",
@@ -74,15 +73,21 @@ function Get-SharedLinks {
             $fileType = $item.FieldValues.File_x0020_Type
             $objectType = $item.FileSystemObjectType
 
-            # In order: (Context, SecurableObject(Item), exclCurren User, exclSiteAdmin, exclSecGrps, retrieveAnonymousLinks, retrieveUserInfoDetails, checkForAccessRequests, retrievePermissionLevels)
-            # [array]$SharingArray = @($Connection, $item, $false, $false, $false, $true, $true, $true, $true, $true )
-
             $hasUniquePermissions = (Get-PnpProperty -ClientObject $item -Property "HasUniqueRoleAssignments" -Connection $Connection)
 
             if ($hasUniquePermissions) {
 
-                 # In order: (Context, SecurableObject(Item), exclCurren User, exclSiteAdmin, exclSecGrps, retrieveAnonymousLinks, retrieveUserInfoDetails, checkForAccessRequests, retrievePermissionLevels)
-                $SharingDetails = [Microsoft.SharePoint.Client.ObjectSharingInformation]::GetObjectSharingInformation($context, $item, $false, $false, $false, $true, $true, $true, $true)
+                $SharingDetails = [Microsoft.SharePoint.Client.ObjectSharingInformation]::GetObjectSharingInformation(
+                    $context, 
+                    $item, 
+                    $false, # excludeCurrentUser
+                    $false, # excludeSiteAdmin
+                    $false, # excludeSecurityGroups
+                    $true,  # retrieveAnonymousLinks
+                    $true,  # retrieveUserInfoDetails
+                    $true,  # checkForAccessRequests
+                    $true   # retrievePermissionLevels
+                )
                 $context.Load($SharingDetails)
                 $context.ExecuteQuery()
 
@@ -112,84 +117,81 @@ function Get-SharedLinks {
                         IsActive = $fileSharingLink.IsActive
                         Expiration = $fileSharingLink.Expiration
                         PasswordProtected = $fileSharingLink.HasPassword
-
                     }
 
                     $Results | Export-Csv -path $reportOutput -NoTypeInformation -Append -Force
                     $Script:ItemCount++
-
-                    $permission = $link.Type
-                    $sharedLink = $link.WebUrl
-                    $passwordProtected = $FileSharingLink.HasPassword
-                    $blockDownload = $link.PreventsDownload
-                    $roleList = $fileSharingLink.Roles -join ", "
-                    $expirationDate = $fileSharingLink.ExpirationDateTime
-                    $users = $fileSharingLink.GrantedToIdentitiesV2.User.Email
-                    $directUsers = $users -join ", "
-
-                    if(-not $expirationDate){
-
-                        $expiryDate = ([datetime]$expirationDate).ToLocalTime()
-                        $expiryDays = (New-TimeSpan -Start $currentDateTime -End $expiryDate).Days
-                        if($expiryDate -lt $currentDateTime) {
-
-                            $linkStatus = "Expired"
-                            $expiryDateCalculation = $expiryDays * (-1)
-                            $friendlyExpiryTime = "Expried $expiryDateCalculation days ago"
-                        }
-                        else {
-
-                            $linkStatus = "Active"
-                            $friendlyExpiryTime = "Expires in $expiryDays days"
-                        }
-                    }
-                    else {
-
-                        $linkStatus = "Active"
-                        $expiryDays = "-"
-                        $expiryDate = "-"
-                        $friendlyExpiryTime = "Never Expires"
-                    }
-                }
+              }
             }
         }
     }
 }  
+                    # $permission = $link.Type
+                    # $sharedLink = $link.WebUrl
+                    # $passwordProtected = $FileSharingLink.HasPassword
+                    # $blockDownload = $link.PreventsDownload
+                    # $roleList = $fileSharingLink.Roles -join ", "
+                    # $expirationDate = $fileSharingLink.ExpirationDateTime
+                    # $users = $fileSharingLink.GrantedToIdentitiesV2.User.Email
+                    # $directUsers = $users -join ", "
 
-            #         $link = $FileSharingLink.Link
-            #         $scope = $link.Scope
-                    
-            #         if( $GetAnyoneLinks -and ( $scope -ne "Anonymous" )) { continue }
-            #         elseif ($GetCompanyLinks -and ( $scope -ne "Organization" )) { continue }
-            #         elseif ($GetSpecificPeopleLinks -and ( $scope -ne "Users" )) { continue }
+                    # if(-not $expirationDate){
 
-                        #         if(( $ActiveLinks ) -and ( $linkStatus -ne "Active" )){ continue }
-            #         elseif(( $ExpiredLinks ) -and ( $linkStatus -ne "Expired" )){ continue }
-            #         elseif(( $LinksWithExpiration ) -and ($null -eq $expirationDate )) { continue }
-            #         elseif(( $NeverExpiresLinks ) -and ( $friendlyExpiryTime -ne "Never Expires" )) { continue }
-            #         elseif(( $SoonToExpireInDays ) -and ( $null -eq $expirationDate) -or ($SoonToExpireInDays -lt $expiryDays) -or ($expiryDays -lt 0 )) { continue }
+                    #     $expiryDate = ([datetime]$expirationDate).ToLocalTime()
+                    #     $expiryDays = (New-TimeSpan -Start $currentDateTime -End $expiryDate).Days
+                    #     if($expiryDate -lt $currentDateTime) {
 
-            #         Write-Host "File: $($item.FieldValues.FileLeafRef), Link: $($fileSharingLink.LinkKind), Expiration: $($fileSharingLink.ExpirationDate)"
-            #     }
-            # }
+                    #         $linkStatus = "Expired"
+                    #         $expiryDateCalculation = $expiryDays * (-1)
+                    #         $friendlyExpiryTime = "Expried $expiryDateCalculation days ago"
+                    #     }
+                    #     else {
 
-            # $FileData += [PSCustomObject]@{
+                    #         $linkStatus = "Active"
+                    #         $friendlyExpiryTime = "Expires in $expiryDays days"
+                    #     }
+                    # }
+                    # else {
 
-            #     "SiteName"             = $siteTitle
-            #     "Library"              = $list.Title
-            #     "ObjectType"           = $objectType
-            #     "File/Folder Name"     = $fileName
-            #     "File/Folder Url"      = $fileUrl
-            #     "Link Type"            = $scope
-            #     "Access Type"          = $permission
-            #     "Roles"                = $roleList
-            #     "Users"                = $directUsers
-            #     "File Type"            = $item.FieldValues.File_x0020_Type
-            #     "Link Status"          = $linkStatus
-            #     "Link Expiry Date"     = $expiryDate
-            #     "Days Since/To Expiry" = $expiryDays
-            #     "Friendly Expiry Time" = $friendlyExpiryTime
-            #     "Password Protected"   = $passwordProtected
-            #     "Block Download"       = $BlockDownload
-            #     "Shared Link"          = $sharedLink
-            # }
+                    #     $linkStatus = "Active"
+                    #     $expiryDays = "-"
+                    #     $expiryDate = "-"
+                    #     $friendlyExpiryTime = "Never Expires"
+                    # }
+                    #         $link = $FileSharingLink.Link
+                    #         $scope = $link.Scope
+                            
+                    #         if( $GetAnyoneLinks -and ( $scope -ne "Anonymous" )) { continue }
+                    #         elseif ($GetCompanyLinks -and ( $scope -ne "Organization" )) { continue }
+                    #         elseif ($GetSpecificPeopleLinks -and ( $scope -ne "Users" )) { continue }
+        
+                                #         if(( $ActiveLinks ) -and ( $linkStatus -ne "Active" )){ continue }
+                    #         elseif(( $ExpiredLinks ) -and ( $linkStatus -ne "Expired" )){ continue }
+                    #         elseif(( $LinksWithExpiration ) -and ($null -eq $expirationDate )) { continue }
+                    #         elseif(( $NeverExpiresLinks ) -and ( $friendlyExpiryTime -ne "Never Expires" )) { continue }
+                    #         elseif(( $SoonToExpireInDays ) -and ( $null -eq $expirationDate) -or ($SoonToExpireInDays -lt $expiryDays) -or ($expiryDays -lt 0 )) { continue }
+        
+                    #         Write-Host "File: $($item.FieldValues.FileLeafRef), Link: $($fileSharingLink.LinkKind), Expiration: $($fileSharingLink.ExpirationDate)"
+                    #     }
+                    # }
+        
+                    # $FileData += [PSCustomObject]@{
+        
+                    #     "SiteName"             = $siteTitle
+                    #     "Library"              = $list.Title
+                    #     "ObjectType"           = $objectType
+                    #     "File/Folder Name"     = $fileName
+                    #     "File/Folder Url"      = $fileUrl
+                    #     "Link Type"            = $scope
+                    #     "Access Type"          = $permission
+                    #     "Roles"                = $roleList
+                    #     "Users"                = $directUsers
+                    #     "File Type"            = $item.FieldValues.File_x0020_Type
+                    #     "Link Status"          = $linkStatus
+                    #     "Link Expiry Date"     = $expiryDate
+                    #     "Days Since/To Expiry" = $expiryDays
+                    #     "Friendly Expiry Time" = $friendlyExpiryTime
+                    #     "Password Protected"   = $passwordProtected
+                    #     "Block Download"       = $BlockDownload
+                    #     "Shared Link"          = $sharedLink
+                    # }
