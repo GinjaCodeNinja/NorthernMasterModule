@@ -116,11 +116,13 @@ function Test-ModulesAdded {
     Set-Output Blue "Checking if required modules are installed..."    
     foreach($Module in $Modules) {
 
-        Set-Output White "$($Module) : " -NoNewline
+        Set-Output White "     $($Module) : " -NoNewline
         if((Get-Module -ListAvailable -Name $Module)) {
 
-            Set-Output Green "Already installed."
+            Set-Output Green "Already installed!"
             Import-Module -Name $Module -Scope CurrentUser -Force -AllowClobber
+
+            return $true
 
         }
         else {
@@ -136,6 +138,8 @@ function Test-ModulesAdded {
                     
                     Set-Output Green "Success!"
                     Import-Module -Name $Module -Force
+
+                    return $true
                 }
                 catch {
 

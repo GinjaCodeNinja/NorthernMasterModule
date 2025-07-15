@@ -16,8 +16,8 @@ Param(
     [int]$SoonToExpireInDays
 )
 
-& "$PSScriptRoot\..\private\HelperFunctions.ps1"
-& "$PSScriptRoot\..\public\Get-FileSharingLinks.ps1"
+. "$PSScriptRoot\..\private\HelperFunctions.ps1"
+. "$PSScriptRoot\..\public\Get-FileSharingLinks.ps1"
 
 #Region Variables
 [datetime]$CurrentDateTime = (Get-Date).DateTime
@@ -39,19 +39,20 @@ Param(
 #EndRegion
 
 #Region Check for Required Modules
-Invoke-WithRetry -Message "Checking for required modules" -ScriptBlock {
+$isInstalled = Invoke-WithRetry -Message "Checking for required modules" -ScriptBlock {
 
-    $isInstalled = Test-ModulesAdded -Modules $Modules
-    if(-not $isInstalled) {
+    Test-ModulesAdded -Modules $Modules
+    Return $true
 
-        Set-Output Red "Required modules are not installed. Exiting script"
-        # Write-Host -ForegroundColor Red "Required modules are not installed. Exiting script."
-        Start-ExitTimer
-    }
+}
+if(-not $isInstalled) {
+    Set-Output Red "Required modules are not installed. Exiting script"
+    # Write-Host -ForegroundColor Red "Required modules are not installed. Exiting script."
+    Start-ExitTimer
 }
 #EndRegion
 
-#Region Get Admin Connection
+#Region Get Admin Connection$
 if(-not $adminUrl){
 
     Set-Output Blue "Please enter the SharePoint Admin Url for the tenant"
