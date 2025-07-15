@@ -1,5 +1,5 @@
-& $PSScriptRoot\..\..\private\ConnectToSharePointSite.ps1
-& $PSScriptRoot\..\..\private\InvokeWithRetry.ps1
+. $PSScriptRoot\..\..\private\ConnectToSharePointSite.ps1
+. $PSScriptRoot\..\..\private\InvokeWithRetry.ps1
 
 $siteUrl = Read-Host -Prompt "Enter your site url (e.g https://<tenant>.sharepoint.com/sites/contoso)";
 $connection = Connect-ToSharePointSite -SiteUrl $siteUrl

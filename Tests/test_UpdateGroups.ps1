@@ -1,6 +1,6 @@
-. "$PSScriptRoot\..\functions\GroupHelpers.ps1"
-. "$PSScriptRoot\..\functions\invokeWithRetry.ps1"
-. "$PSScriptRoot\..\functions\updateGroupMembers.ps1"
+. "$PSScriptRoot\..\private\GroupHelpers.ps1"
+. "$PSScriptRoot\..\private\invokeWithRetry.ps1"
+. "$PSScriptRoot\..\private\updateGroupMembers.ps1"
 
 $requiredScopes = @("Group.ReadWrite.All", "User.Read.All")
 $connected = Get-MgContext
