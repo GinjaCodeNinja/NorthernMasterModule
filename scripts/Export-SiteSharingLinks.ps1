@@ -55,18 +55,22 @@ if(-not $isInstalled) {
 #Region Get Admin Connection$
 if(-not $adminUrl){
 
-    Set-Output Blue "Please enter the SharePoint Admin Url for the tenant"
-    # Write-Host -ForegroundColor Blue "Please enter the SharePoint admin Url for the tenant"
-    $adminUrl = Read-Host 
+    while(-not $adminUrl){
+
+        Set-Output Blue "Please enter the SharePoint Admin Url for the tenant"
+        # Write-Host -ForegroundColor Blue "Please enter the SharePoint admin Url for the tenant"
+        $adminUrl = Read-Host 
+    }
 }
 
-Set-Output Yellow "Connecting to the SharePoint Admin site: " -NoNewLineLine
+Set-Output Yellow "Connecting to the SharePoint Admin site: " -NoNewLine
 # Write-Host -ForegroundColor Yellow "Connecting to the SharePoint Admin site: " -NoNewline
 $adminConnection = Connect-ToAdminSharePointSite -SiteUrl $AdminUrl -ClientId $PnPSharePointClientId
 
 if($adminConnection){
 
     Set-Output Green "Success!"
+    $fileSharingSplat.adminConnection = $adminConnection
     # Write-Host -ForegroundColor Green "Success!"
 }
 
@@ -79,6 +83,8 @@ if(-not $AllSites){
         # Write-Host -ForegroundColor White "Please enter the site URL you would like to build a sharing links report on:"
         Add-LineBreak
         $SiteUrl = Read-Host
+
+        $fileSharingSplat.SiteUrl = $SiteUrl
     }
 
     Set-Output Blue "Processing site at URL: $SiteUrl"
@@ -86,22 +92,21 @@ if(-not $AllSites){
     # Write-Host -ForegroundColor Blue "Processing site at URL: $SiteUrl"
     # Write-Host -ForegroundColor Blue "-------------------------------------------"
 
-    Invoke-WithRetry -ScriptBlock {
+    # Invoke-WithRetry -ScriptBlock {
+
+    #         Add-LineBreak
+    #     # Set-Output White "Status: " -NoNewLine
+    #     # $siteConnection = Connect-ToSharePointSite -SiteUrl $SiteUrl -Connection $adminConnection
+
+    #     # if($siteConnection){
+
+    #     #     Set-Output Green "Success!"
+    #         $fileSharingSplat.Connection = $siteConnection
+    #     }
+
+        Get-SharedLinks @fileSharingSplat
 
         Add-LineBreak
-        Set-Output White "Status: " -NoNewLine
-        $siteConnection = Connect-ToSharePointSite -SiteUrl $SiteUrl -Connection $adminConnection
-
-        if($siteConnection){
-
-            Set-Output Green "Success!"
-            $fileSharingSplat.connection = $siteConnection
-        }
-
-        Get-FileSharingLinks @fileSharingSplat
-
-        Add-LineBreak
-    }
 } 
 else {
 
@@ -117,14 +122,14 @@ else {
 
         foreach($site in $siteCollections){
 
-            [object]$siteConnection = $null
+            $fileSharingSplat.SiteUrl = $null
 
-            Invoke-WithRetry -Message "Connecting to $($site.Title): "
-            $siteConnection = Connect-ToSharePointSite -SiteUrl $site.Url -Connection $adminConnection
+            # Invoke-WithRetry -Message "Connecting to $($site.Title): "
+            # $siteConnection = Connect-ToSharePointSite -SiteUrl $site.Url -Connection $adminConnection
 
-            $fileSharingSplat.connection = $siteConnection
+            $fileSharingSplat.SiteUrl = $site.Url
 
-            Get-FileSharingLinks @fileSharingSplat
+            Get-SharedLinks @fileSharingSplat
         }
     }
 }

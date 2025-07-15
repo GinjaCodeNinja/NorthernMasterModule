@@ -46,7 +46,7 @@ function Connect-ToAdminSharePointSite {
 
     Invoke-WithRetry -ScriptBlock {
             
-        $connection = Connect-PnPOnline -Url $SiteUrl -Interactive -ClientId $ClientId-ReturnConnection
+        $connection = Connect-PnPOnline -Url $SiteUrl -Interactive -ClientId $ClientId -ReturnConnection
         return $connection
     }
 }
@@ -65,7 +65,7 @@ function Connect-ToSharePointSite {
 
     Invoke-WithRetry -ScriptBlock {
             
-        $cnx = Connect-PnPOnline -Url $SiteUrl -Connection $connection
+        $cnx = Connect-PnPOnline -Url $SiteUrl -Connection $connection -ReturnConnection
         return $cnx
     }
 }
@@ -98,7 +98,10 @@ function Invoke-WithRetry{
         catch {
 
             if ($attempt -eq $MaxRetries) { throw }
-            Write-Host -ForegroundColor Red "Attempt $attempt failed: $($_.Exception.Message)"
+            Set-Output Red "Attempt $attempt failed: $($_.Exception.Message)"
+            Set-Output Red "$($_.ErrorDetails)"
+            Set-Output White "FQEID": -NoNewLine
+            Set-Output Red "$($_.FullyQualifiedErrorId)"
             Start-Sleep -Seconds $DelaySeconds
             $attempt++
         }
@@ -120,7 +123,7 @@ function Test-ModulesAdded {
         if((Get-Module -ListAvailable -Name $Module)) {
 
             Set-Output Green "Already installed!"
-            Import-Module -Name $Module -Scope CurrentUser -Force -AllowClobber
+            Import-Module -Name $Module
 
             return $true
 

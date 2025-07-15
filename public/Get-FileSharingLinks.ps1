@@ -11,10 +11,12 @@ function Get-SharedLinks {
         [switch]$GetCompanyLinks,
         [switch]$GetSpecificPeopleLinks,
         [int]$SoonToExpireInDays,
-        [string]$ReturnOutput,
+        [string]$ReportOutput,
         [datetime]$CurrentDateTIme,
+        [object]$adminConnection,
         [Parameter(Mandatory)]
-        [object]$Connection
+        [string]$SiteUrl
+        
     )
 
     [array]$ExcludedLists = @(
@@ -37,31 +39,35 @@ function Get-SharedLinks {
     # [bool]$Any = if($GetAnyoneLinks){ $true } else { $false }
     # [bool]$Comp = if($GetCompanyLinks){ $true } else { $false }
     # [bool]$SpecPpl = if($GetSpecificPeopleLinks){ $true } else { $false }
-    [object]$ctx = $connection
-
-   
     
+    $Connection = Invoke-WithRetry -ScriptBlock {
+
+        $cnx = Connect-ToSharePointSite -SiteUrl $SiteUrl -Connection $adminConnection
+
+        return $cnx
+    }
+
+    $context = Get-PnPContext -Connection $Connection
+
     # Get Document Libraries
-    $documentLibraries = Get-PnPList -Connection $cnx | Where-Object { $_.BaseTemplate -eq 101 -and $_.Hidden -eq $false -and $_.Title -notin $ExcludedLists }
+    $documentLibraries = Get-PnPList -Connection $Connection | Where-Object { $_.BaseTemplate -eq 101 -and $_.Hidden -eq $false -and $_.Title -notin $ExcludedLists }
 
     Write-Host -ForegroundColor Blue "DOCUMENT LIBRARIES"
     Write-Host -ForegroundColor Blue "--------------------------------"
 
 
-    foreach ($list in $DocumentLibraries) {
+    foreach ($list in $documentLibraries) {
 
-        $currentListIndex = $ListItems.IndexOf($list)
-        Write-Progress -Activity ("Library: $($list.Title)") -Status ("Processing Item : "+ $list.Title) -PercentComplete (($currentListIndex / $documentLibraries.Count) * 100)
+        # $currentListIndex = $ListItems.IndexOf($list)
+        # Write-Progress -Activity ("Library: $($list.Title)") -Status ("Processing Item : "+ $list.Title) -PercentComplete (($currentListIndex / $documentLibraries.Count) * 100)
         
-
-        Write-Host -ForegroundColor White "     [$($DocumentLibraries.IndexOf($list)+1)] $($list.Title)"
-        $listItems = Get-PnpListItem -List $list -PageSize 200 -Connection $connection
+        # Write-Host -ForegroundColor White "     [$($DocumentLibraries.IndexOf($list)+1)] $($list.Title)"
+        $listItems = Get-PnpListItem -List $list -PageSize 200 -Connection $Connection
 
         foreach ($item in $ListItems) {
 
             $currentItemIndex = $ListItems.IndexOf($item)
             Write-Progress -Activity ("Site Name: $Site") -Status ("Processing Item : "+ $fileUrl) -PercentComplete (($currentItemIndex / $listItems.Count) * 100)
-
 
             $fileName = $item.FieldValues.FileLeafRef
             $fileUrl = $item.FieldValues.FileRef
@@ -69,15 +75,16 @@ function Get-SharedLinks {
             $objectType = $item.FileSystemObjectType
 
             # In order: (Context, SecurableObject(Item), exclCurren User, exclSiteAdmin, exclSecGrps, retrieveAnonymousLinks, retrieveUserInfoDetails, checkForAccessRequests, retrievePermissionLevels)
-            [array]$SharingArray = @($Connection, $item, $Actv, $false, $false, $false, $true, $true, $true, $true, $true )
+            # [array]$SharingArray = @($Connection, $item, $false, $false, $false, $true, $true, $true, $true, $true )
 
-            $hasUniquePermissions = (Get-PnpProperty -ClientObject $item -Property HasUniqueRoleAssignments -Connection $connection)
+            $hasUniquePermissions = (Get-PnpProperty -ClientObject $item -Property "HasUniqueRoleAssignments" -Connection $Connection)
 
             if ($hasUniquePermissions) {
 
-                $SharingDetails = [Microsoft.SharePoint.Client.ObjectSharingInformation]::GetObjectSharingInformation($SharingArray)
-                $ctx.Load($SharingDetails)
-                $ctx.ExecuteQuery()
+                 # In order: (Context, SecurableObject(Item), exclCurren User, exclSiteAdmin, exclSecGrps, retrieveAnonymousLinks, retrieveUserInfoDetails, checkForAccessRequests, retrievePermissionLevels)
+                $SharingDetails = [Microsoft.SharePoint.Client.ObjectSharingInformation]::GetObjectSharingInformation($context, $item, $false, $false, $false, $true, $true, $true, $true)
+                $context.Load($SharingDetails)
+                $context.ExecuteQuery()
 
                 foreach ($fileSharingLink in $SharingDetails.SharingLinks) {
 
