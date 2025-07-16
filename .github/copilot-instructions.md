@@ -41,6 +41,22 @@
 - Use interactive prompts for user-driven workflows.
 - Reference existing scripts for patterns before introducing new ones.
 
+## Poweshell Requirements
+- **Functions** 
+  - Use PascalCase (e.g., `Get-UserData`)
+  - Use meaningful variable and function names (describe what they hold/do).
+  - Break long functions into smaller, focused ones
+  - If functions purpose is a 'helper', add it to the existing 'Helper Functions' file, and if there isn't one, create one  
+  - Favor pipeline operations for readability and efficiency.
+- **Variable names:** 
+    - Use camelCase (e.g., `userList`, `index`)
+- **Braces** 
+  - `{}`: Always **open** braces at the end of the line starting the script block.
+  - `{}`: Always **closed** braces on a new line
+  - After an opening brace, add a **blank line** before code continues.
+- **Commenting:** 
+  - Comment complex logic; skip obvious code.
+
 ---
 
 If any section is unclear or missing, please provide feedback to improve these instructions.
