@@ -25,7 +25,7 @@ Import-Module Microsoft.Graph -Force
 
 # Inform the user about necessary preparations
 #Write-Host -ForegroundColor Blue "Please make sure you have turned on TAP for the user's mailbox before running this script"
-Write-Host -ForegroundColor Blue "You will also need to login to global admin for this tenant browser session"
+Write-Host -ForegroundColor Blue "You will also need to login to the users profile using for this tenant browser session"
 Write-Host -ForegroundColor Blue "You will also need to have the last active web browser window be the guest browser session"
 
 # Wait for the user to be ready

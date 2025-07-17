@@ -1,10 +1,8 @@
 [CmdletBinding()]
 Param(
-    
     [Parameter(Mandatory = $true)]
-    [string]$PnPSharePointClientId,
-    [string]$AdminUrl,
-    [string]$siteUrl,
+    [string]$TenantName,
+    [string]$SiteUrl,
     [switch]$AllSites,
     [switch]$ExcludeSites,
     [switch]$ActiveLinks,
@@ -17,13 +15,50 @@ Param(
     [int]$SoonToExpireInDays
 )
 
+# Load tenant configuration manually
+$TenantConfigPath = "$PSScriptRoot\..\tenant.psd1"
+if (Test-Path $TenantConfigPath) {
+    $TenantConfig = Import-PowerShellDataFile -Path $TenantConfigPath
+    $script:Tenant = $TenantConfig.Tenant
+    $script:ClientId = $TenantConfig.ClientId
+    $script:Tenants = $TenantConfig.Tenants
+} else {
+    Write-Error "Tenant configuration file not found at: $TenantConfigPath"
+    exit 1
+}
+
+# Dot-source required functions
+. "$PSScriptRoot\..\private\Get-TenantConfig.ps1"
 . "$PSScriptRoot\..\private\HelperFunctions.ps1"
 . "$PSScriptRoot\..\public\Get-FileSharingLinks.ps1"
+
+
+#Region Get Tenant Configuration
+# Get tenant configuration using the helper function
+$tenantConfig = Get-TenantConfig -TenantName $TenantName
+
+if (-not $tenantConfig) {
+    Write-Error "Failed to retrieve tenant configuration for '$TenantName'"
+    exit 1
+}
+
+# Debug: Check if ClientId is empty
+if (-not $tenantConfig.ClientId -or $tenantConfig.ClientId -eq "") {
+    Write-Error "ClientId is empty or null for tenant '$TenantName'. Please check your tenant.psd1 configuration."
+    Write-Host "Available tenants: $($script:Tenants.Keys -join ', ')" -ForegroundColor Yellow
+    exit 1
+}
+
+Write-Host "Using tenant configuration:" -ForegroundColor Cyan
+Write-Host "  Tenant: $($tenantConfig.TenantName)" -ForegroundColor White
+Write-Host "  ClientId: $($tenantConfig.ClientId)" -ForegroundColor White
+Write-Host "  AdminUrl: $($tenantConfig.AdminUrl)" -ForegroundColor White
+#EndRegion
 
 #Region Variables
 [datetime]$CurrentDateTime = (Get-Date).DateTime
 [string]$TimeStamp = Get-Date -Format "yyyy-MM-dd"
-[string]$ReportOutput = "$PSScriptRoot\SharingLinks_Report_$TimeStamp.csv"
+[string]$ReportOutput = "C:\Temp\SharingLinksReport_$($tenantConfig.TenantName)_$TimeStamp.csv"
 [array]$Modules = @("PnP.PowerShell")
 [hashtable]$fileSharingSplat = @{
 
@@ -35,7 +70,7 @@ Param(
     GetCompanyLinks        = $GetCompanyLinks
     GetSpecificPeopleLinks = $GetSpecificPeopleLinks
     ReportOutput           = $ReportOutput
-    CurrentDateTime        = $CurrentDateTIme
+    CurrentDateTime        = $CurrentDateTime
 }
 #EndRegion
 
@@ -53,27 +88,19 @@ if(-not $isInstalled) {
 }
 #EndRegion
 
-#Region Get Admin Connection$
-if(-not $adminUrl){
-
-    while(-not $adminUrl){
-
-        Write-Host -ForegroundColor  Blue "Please enter the SharePoint Admin Url for the tenant"
-        # Write-Host -ForegroundColor Blue "Please enter the SharePoint admin Url for the tenant"
-        $adminUrl = Read-Host 
-    }
-}
-
-Write-Host -ForegroundColor  Yellow "Connecting to the SharePoint Admin site: " -NoNewLine
-# Write-Host -ForegroundColor Yellow "Connecting to the SharePoint Admin site: " -NoNewline
-$adminConnection = Connect-ToAdminSharePointSite -SiteUrl $AdminUrl -ClientId $PnPSharePointClientId
+#Region Get Admin Connection
+Write-Host -ForegroundColor Yellow "Connecting to the SharePoint Admin site: $($tenantConfig.AdminUrl)" -NoNewLine
+$adminConnection = Connect-ToAdminSharePointSite -SiteUrl $tenantConfig.AdminUrl -ClientId $tenantConfig.ClientId
 
 if($adminConnection){
-
-    Write-Host -ForegroundColor  Green "Success!"
+    Write-Host -ForegroundColor Green "Success!"
     $fileSharingSplat.adminConnection = $adminConnection
-    # Write-Host -ForegroundColor Green "Success!"
 }
+else {
+    Write-Host -ForegroundColor Red "Failed to connect to admin site"
+    exit 1
+}
+#EndRegion
 
 if(-not $AllSites){
 
@@ -84,9 +111,10 @@ if(-not $AllSites){
         # Write-Host -ForegroundColor White "Please enter the site URL you would like to build a sharing links report on:"
         Add-LineBreak
         $SiteUrl = Read-Host
-
-        $fileSharingSplat.Add("SiteUrl", $SiteUrl)
     }
+
+    # Add the SiteUrl to the splat (whether provided as parameter or entered manually)
+    $fileSharingSplat.Add("SiteUrl", $SiteUrl)
 
     Write-Host -ForegroundColor  Blue "Processing site at URL: $SiteUrl"
     Write-Host -ForegroundColor  Blue "----------------------------------------------------"
