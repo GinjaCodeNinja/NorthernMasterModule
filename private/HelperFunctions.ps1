@@ -1,35 +1,33 @@
+#Region function Set-Output
+function Set-Output {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$Color,
+        
+        [Parameter(Mandatory = $true, Position = 1)]
+        [string]$Message,
+        
+        [switch]$NoNewline
+    )
+    
+    $writeHostParams = @{
+        ForegroundColor = $Color
+        Object = $Message
+    }
+    
+    if ($NoNewline) {
+        $writeHostParams['NoNewline'] = $true
+    }
+    
+    Write-Host @writeHostParams
+}
+#EndRegion
+
 #Region function Connect-ToSharePointSite
 function Add-LineBreak {
 
     Write-Host "" # For readability
-}
-
-function Set-Output {
-
-    [CmdletBinding()]
-    param (
-        [Parameter(
-            Mandatory = $true,
-            Position = 0
-        )]
-        [String]$Color,
-        [Parameter(
-            Mandatory = $true,
-            Position = 1
-        )]
-        [String]$Message,
-        [Switch]$NoNewLine
-    )
-
-    if(-not $noNewLine){
-        
-        Write-Host -ForegroundColor $Color $Message
-    }
-    else{
-
-        Write-Host -ForegroundColor $Color $Message -NoNewLine
-    }
-
 }
 
 function Connect-ToAdminSharePointSite {
