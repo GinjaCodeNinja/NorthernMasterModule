@@ -6,12 +6,23 @@ $ModulePath = $PSScriptRoot
 
 # Load tenant configuration
 $TenantConfigPath = Join-Path $ModulePath 'tenant.psd1'
+Write-Verbose "Looking for tenant configuration at: $TenantConfigPath"
 if (Test-Path $TenantConfigPath) {
+    Write-Verbose "Found tenant configuration file, loading..."
     $TenantConfig = Import-PowerShellDataFile -Path $TenantConfigPath
     
     # Make tenant configuration available to all module functions
     $script:Tenant = $TenantConfig.Tenant
     $script:ClientId = $TenantConfig.ClientId
+    
+    # Multi-tenant configuration support
+    # Access via $script:Tenants.<companyName>.ClientId
+    $script:Tenants = $TenantConfig.Tenants
+    
+    Write-Verbose "Loaded tenant configuration: Tenant='$script:Tenant', ClientId='$script:ClientId'"
+    Write-Verbose "Available tenants: $($script:Tenants.Keys -join ', ')"
+} else {
+    Write-Warning "Tenant configuration file not found at: $TenantConfigPath"
 }
 
 # Load private functions (helpers)
@@ -51,9 +62,10 @@ foreach ($Function in $PublicFunctions) {
 }
 
 # Export module variables for backward compatibility
-Export-ModuleMember -Variable @('Tenant', 'ClientId')
+Export-ModuleMember -Variable @('Tenant', 'ClientId', 'Tenants')
 
 # Module initialization message
 Write-Host "Northern Computer Master Module loaded successfully!" -ForegroundColor Green
-Write-Host "Tenant: $script:Tenant" -ForegroundColor Cyan
+Write-Host "Default Tenant: $script:Tenant" -ForegroundColor Cyan
+Write-Host "Available Tenants: $($script:Tenants.Keys -join ', ')" -ForegroundColor Cyan
 Write-Host "Available functions: $(($PublicFunctions | Measure-Object).Count)" -ForegroundColor Cyan

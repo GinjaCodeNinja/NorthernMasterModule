@@ -44,11 +44,72 @@ The Northern Computer Master Module provides a comprehensive set of PowerShell f
 
 ## Configuration
 
-The module uses a configuration file (`tenant.psd1`) to store tenant-specific settings:
+The module uses a configuration file (`tenant.psd1`) to store tenant-specific settings. It supports both single-tenant and multi-tenant configurations:
 
+### Single Tenant Configuration (Backward Compatibility)
 ```powershell
-$script:Tenant = "northerncomputer"
-$script:ClientId = "fe14f9e4-a977-402f-8e3a-3e210974a40b"
+@{
+    # Default tenant configuration
+    Tenant = "northerncomputer"
+    ClientId = "fe14f9e4-a977-402f-8e3a-3e210974a40b"
+}
+```
+
+### Multi-Tenant Configuration
+```powershell
+@{
+    # Default tenant (for backward compatibility)
+    Tenant = "northerncomputer"
+    ClientId = "fe14f9e4-a977-402f-8e3a-3e210974a40b"
+    
+    # Multi-tenant configuration
+    Tenants = @{
+        northerncomputer = @{
+            TenantName = "northerncomputer"
+            ClientId = "fe14f9e4-a977-402f-8e3a-3e210974a40b"
+            AdminUrl = "https://northerncomputer-admin.sharepoint.com"
+        }
+        
+        contoso = @{
+            TenantName = "contoso"
+            ClientId = "12345678-90ab-cdef-1234-567890abcdef"
+            AdminUrl = "https://contoso-admin.sharepoint.com"
+        }
+    }
+}
+```
+
+### Using Multi-Tenant Configuration in Scripts
+
+#### Option 1: Using the Helper Function (Recommended)
+```powershell
+# Get configuration for specific tenant
+$config = Get-TenantConfig -TenantName "northerncomputer"
+$clientId = $config.ClientId
+$adminUrl = $config.AdminUrl
+
+# Or use default tenant if no name specified
+$config = Get-TenantConfig
+```
+
+#### Option 2: Script Parameter Approach (Best Practice)
+```powershell
+# In your script parameters
+param(
+    [string]$TenantName = "northerncomputer"
+)
+
+# Use the helper function
+$config = Get-TenantConfig -TenantName $TenantName
+$connection = Connect-PnPOnline -Url $config.AdminUrl -ClientId $config.ClientId -Interactive
+```
+
+#### Option 3: Direct Access
+```powershell
+# Direct access to tenant configuration
+$clientId = $script:Tenants.northerncomputer.ClientId
+$tenantName = $script:Tenants.northerncomputer.TenantName
+$adminUrl = "https://$tenantName-admin.sharepoint.com"
 ```
 
 Update these values to match your environment before using the module.

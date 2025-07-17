@@ -42,6 +42,9 @@ function Get-SharedLinks {
         return $cnx
     }
 
+    # Get site title
+    $siteTitle = (Get-PnPWeb -Connection $Connection).Title
+
     # $context = Get-PnPContext -Connection $Connection
 
     # Get Document Libraries
@@ -59,15 +62,17 @@ function Get-SharedLinks {
         # Write-Host -ForegroundColor White "     [$($DocumentLibraries.IndexOf($list)+1)] $($list.Title)"
         $listItems = Get-PnpListItem -List $list -PageSize 200 -Connection $Connection
 
-        foreach ($item in $ListItems) {
-
-            $currentItemIndex = $ListItems.IndexOf($item)
-            Write-Progress -Activity ("Site Name: $Site") -Status ("Processing Item : "+ $fileUrl) -PercentComplete (($currentItemIndex / $listItems.Count) * 100)
-
+        $currentItemIndex = 0
+        foreach ($item in $listItems) {
+            $currentItemIndex++
+            
             $fileName = $item.FieldValues.FileLeafRef
             $fileUrl = $item.FieldValues.FileRef
             $fileType = $item.FieldValues.File_x0020_Type
             $objectType = $item.FileSystemObjectType
+            
+            $percentComplete = [math]::Min(100, [math]::Round(($currentItemIndex / $listItems.Count) * 100))
+            Write-Progress -Activity ("Site Name: $SiteUrl") -Status ("Processing Item : "+ $fileUrl) -PercentComplete $percentComplete
 
             $hasUniquePermissions = (Get-PnpProperty -ClientObject $item -Property "HasUniqueRoleAssignments" -Connection $Connection)
 
@@ -118,11 +123,11 @@ function Get-SharedLinks {
 
                 if($objectType -eq "File"){
 
-                    $pnpFileSharingLinks = Get-PnPFileSharingLink -Url $fileUrl
+                    $pnpFileSharingLinks = Get-PnPFileSharingLink -Identity $fileUrl -Connection $Connection
                 }
-                elseif($bojectType -eq "Folder"){
+                elseif($objectType -eq "Folder"){
 
-                    $pnpFileSharingLinks = Get-PnPFolderSharingLink -Url $fileUrl
+                    $pnpFileSharingLinks = Get-PnPFolderSharingLink -Identity $fileUrl -Connection $Connection
                 }
                 else {
                     Write-Host -ForegroundColor  Red "Unsupported object type: $objectType for file: $fileName"
@@ -133,53 +138,52 @@ function Get-SharedLinks {
                     $link = $pnpFileSharingLink.Link
                     $scope = $link.Scope
 
-                    if( $GetAnyoneLinks -and ( $scope -ne "Anonymous" )) { continue }
-                    elseif ($GetCompanyLinks -and ( $scope -ne "Organization" )) { continue }
-                    elseif ($GetSpecificPeopleLinks -and ( $scope -ne "Users" )) { continue }
-
-                    
-                    if(( $ActiveLinks ) -and ( $linkStatus -ne "Active" )){ continue }
-                    elseif(( $ExpiredLinks ) -and ( $linkStatus -ne "Expired" )){ continue }
-                    elseif(( $LinksWithExpiration ) -and ($null -eq $expirationDate )) { continue }
-                    elseif(( $NeverExpiresLinks ) -and ( $friendlyExpiryTime -ne "Never Expires" )) { continue }
-                    elseif(( $SoonToExpireInDays ) -and ( $null -eq $expirationDate) -or ($SoonToExpireInDays -lt $expiryDays) -or ($expiryDays -lt 0 )) { continue }
-
-                    Write-Host "File: $($item.FieldValues.FileLeafRef), Link: $($fileSharingLink.LinkKind), Expiration: $($fileSharingLink.ExpirationDate)"
-
+                    # Extract link details
                     $permission = $Link.Type
                     $sharedLink = $link.WebUrl
                     $passwordProtected = $pnpFileSharingLink.HasPassword
                     $blockDownload = $link.PreventsDownload
-                    $RoleList = $pnpFileSharingLink.Roles -join ", "
+                    $roleList = $pnpFileSharingLink.Roles -join ", "
                     $expirationDate = $pnpFileSharingLink.ExpirationDateTime
                     $users = $pnpFileSharingLink.GrantedToIdentitiesV2.User.Email
                     $directUsers = $users -join ", "
-                    if(-not $expirationDate){
-
+                    $createdBy = $item.FieldValues.Author.LookupValue
+                    
+                    # Calculate expiration details
+                    if($expirationDate){
                         $expiryDate = ([datetime]$expirationDate).ToLocalTime()
-                        $expiryDays = (New-TimeSpan -Start $currentDateTime -End $expiryDate).Days
-                        if($expiryDate -lt $currentDateTime) {
-
+                        $expiryDays = (New-TimeSpan -Start $CurrentDateTIme -End $expiryDate).Days
+                        if($expiryDate -lt $CurrentDateTIme) {
                             $linkStatus = "Expired"
                             $expiryDateCalculation = $expiryDays * (-1)
-                            $friendlyExpiryTime = "Expried $expiryDateCalculation days ago"
+                            $friendlyExpiryTime = "Expired $expiryDateCalculation days ago"
                         }
                         else {
-
                             $linkStatus = "Active"
                             $friendlyExpiryTime = "Expires in $expiryDays days"
                         }
                     }
                     else {
-
                         $linkStatus = "Active"
                         $expiryDays = "-"
                         $expiryDate = "-"
                         $friendlyExpiryTime = "Never Expires"
                     }
 
+                    # Apply filters
+                    if( $GetAnyoneLinks -and ( $scope -ne "Anonymous" )) { continue }
+                    elseif ($GetCompanyLinks -and ( $scope -ne "Organization" )) { continue }
+                    elseif ($GetSpecificPeopleLinks -and ( $scope -ne "Users" )) { continue }
+
+                    if(( $ActiveLinks ) -and ( $linkStatus -ne "Active" )){ continue }
+                    elseif(( $ExpiredLinks ) -and ( $linkStatus -ne "Expired" )){ continue }
+                    elseif(( $LinksWithExpiration ) -and ($null -eq $expirationDate )) { continue }
+                    elseif(( $NeverExpiresLinks ) -and ( $friendlyExpiryTime -ne "Never Expires" )) { continue }
+                    elseif(( $SoonToExpireInDays ) -and ( $null -eq $expirationDate -or $expiryDays -eq "-" -or $SoonToExpireInDays -lt $expiryDays -or $expiryDays -lt 0 )) { continue }
+
+                    Write-Host "File: $($item.FieldValues.FileLeafRef), Link: $($pnpFileSharingLink.Link.Scope), Expiration: $($expirationDate)"
+
                     $PnPResults += [PSCustomObject]@{
-        
                         "SiteName"             = $siteTitle
                         "Library"              = $list.Title
                         "ObjectType"           = $objectType
@@ -195,16 +199,23 @@ function Get-SharedLinks {
                         "Days Since/To Expiry" = $expiryDays
                         "Friendly Expiry Time" = $friendlyExpiryTime
                         "Password Protected"   = $passwordProtected
-                        "Block Download"       = $BlockDownload
+                        "Block Download"       = $blockDownload
                         "Shared Link"          = $sharedLink
-                        "CreatedBy"            = $CreatedBy
+                        "CreatedBy"            = $createdBy
                     }
 
-                    $PnPResults | Export-Csv -Path $ReportOutput -NoTypeInformation -Append -Force
-                    # $TotalResults | Export-Csv -path $reportOutput -NoTypeInformation -Append -Force
                     $Script:ItemCount++
-              }
+                }
             }
         }
+    }
+
+    # Export all results to CSV at the end
+    if ($PnPResults.Count -gt 0) {
+        $PnPResults | Export-Csv -Path $ReportOutput -NoTypeInformation -Force
+        Write-Host -ForegroundColor Green "Results exported to: $ReportOutput"
+        Write-Host -ForegroundColor Green "Total sharing links found: $($PnPResults.Count)"
+    } else {
+        Write-Host -ForegroundColor Yellow "No sharing links found matching the specified criteria."
     }
 }  
